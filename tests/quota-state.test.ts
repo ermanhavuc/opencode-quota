@@ -66,6 +66,16 @@ describe("quota-state shared cache", () => {
     expect(singleWindowKey).toBe(allWindowsKey);
   });
 
+  it("versions the Anthropic cache identity for Fable-aware entries", async () => {
+    const { buildQuotaProviderStateCacheKey } = await import("../src/lib/quota-state.js");
+    const context = createTestContext();
+
+    expect(buildQuotaProviderStateCacheKey("anthropic", context)).toContain(
+      "providerSchema=anthropic-fable-v1",
+    );
+    expect(buildQuotaProviderStateCacheKey("openai", context)).not.toContain("providerSchema=");
+  });
+
   it("keeps the latest live-local snapshot available to export cache reads", async () => {
     const { __resetQuotaStateForTests, fetchQuotaProviderResult, readCachedProviderResult } =
       await import("../src/lib/quota-state.js");

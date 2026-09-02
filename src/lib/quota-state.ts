@@ -43,6 +43,7 @@ export function buildQuotaProviderStateCacheKey(
   const currentModel = ctx.config.currentModel ?? "";
   const currentProviderID = ctx.config.currentProviderID ?? "";
   const anthropicBinaryPath = ctx.config.anthropicBinaryPath ?? "";
+  const providerSchema = providerId === "anthropic" ? "|providerSchema=anthropic-fable-v1" : "";
   const isAggregateCache =
     providerId === QUOTA_PROVIDERS_AGGREGATE_ID ||
     providerId.startsWith(`${QUOTA_PROVIDERS_AGGREGATE_ID}:`);
@@ -60,7 +61,7 @@ export function buildQuotaProviderStateCacheKey(
       ])}`
     : "";
 
-  return `${providerId}${quotaProvidersIdentity}${runtimeEligibleIdentity}|anthropicBinaryPath=${anthropicBinaryPath}|googleModels=${googleModels}|cursorPlan=${cursorPlan}|cursorIncludedApiUsd=${cursorIncludedApiUsd}|cursorBillingCycleStartDay=${cursorBillingCycleStartDay}|opencodeGoWindows=${opencodeGoWindows}|onlyCurrentModel=${onlyCurrentModel}|currentModel=${currentModel}|currentProviderID=${currentProviderID}`;
+  return `${providerId}${providerSchema}${quotaProvidersIdentity}${runtimeEligibleIdentity}|anthropicBinaryPath=${anthropicBinaryPath}|googleModels=${googleModels}|cursorPlan=${cursorPlan}|cursorIncludedApiUsd=${cursorIncludedApiUsd}|cursorBillingCycleStartDay=${cursorBillingCycleStartDay}|opencodeGoWindows=${opencodeGoWindows}|onlyCurrentModel=${onlyCurrentModel}|currentModel=${currentModel}|currentProviderID=${currentProviderID}`;
 }
 
 function getQuotaProviderCacheDir(): string {
