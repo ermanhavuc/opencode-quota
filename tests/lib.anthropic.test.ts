@@ -171,6 +171,26 @@ describe("parseUsageResponse", () => {
     expect(result?.seven_day.resetTimeIso).toBe("2026-04-01T00:00:00.000Z");
   });
 
+  it("parses the provider-named Fable scoped weekly limit", () => {
+    const result = parseUsageResponse({
+      five_hour: { utilization: 22, resets_at: "2026-09-02T20:30:00.000Z" },
+      seven_day: { utilization: 5, resets_at: "2026-09-06T03:00:00.000Z" },
+      limits: [
+        {
+          kind: "weekly_scoped",
+          percent: 8,
+          resets_at: "2026-09-06T03:00:00.000Z",
+          scope: { model: { id: null, display_name: "Fable" } },
+        },
+      ],
+    });
+
+    expect(result?.fable).toEqual({
+      percentRemaining: 92,
+      resetTimeIso: "2026-09-06T03:00:00.000Z",
+    });
+  });
+
   it("drops invalid reset timestamps and only caps percent remaining above 100", () => {
     const result = parseUsageResponse({
       usage: {

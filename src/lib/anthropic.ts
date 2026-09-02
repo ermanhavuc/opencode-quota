@@ -49,12 +49,16 @@ export interface AnthropicQuotaWindow {
 export interface AnthropicUsageResponse {
   five_hour: AnthropicQuotaWindow;
   seven_day: AnthropicQuotaWindow;
+  limits?: unknown[];
 }
+
+type AnthropicQuotaValue = { percentRemaining: number; resetTimeIso?: string };
 
 export interface AnthropicQuotaResult {
   success: true;
-  five_hour: { percentRemaining: number; resetTimeIso?: string };
-  seven_day: { percentRemaining: number; resetTimeIso?: string };
+  five_hour: AnthropicQuotaValue;
+  seven_day: AnthropicQuotaValue;
+  fable?: AnthropicQuotaValue;
 }
 
 export interface AnthropicQuotaError {
@@ -303,9 +307,7 @@ function getWindowResetTimeIso(window: Record<string, unknown>): string | undefi
   );
 }
 
-function parseQuotaWindow(
-  window: unknown,
-): { percentRemaining: number; resetTimeIso?: string } | null {
+function parseQuotaWindow(window: unknown): AnthropicQuotaValue | null {
   const record = asRecord(window);
   if (!record) {
     return null;
@@ -320,6 +322,32 @@ function parseQuotaWindow(
     percentRemaining: Math.min(100, Math.round(100 - used)),
     resetTimeIso: getWindowResetTimeIso(record),
   };
+}
+
+function parseFableQuotaWindow(limits: unknown): AnthropicQuotaValue | null {
+  if (!Array.isArray(limits)) return null;
+
+  for (const value of limits) {
+    const limit = asRecord(value);
+    if (!limit || limit["kind"] !== "weekly_scoped") continue;
+
+    const scope = asRecord(limit["scope"]);
+    const model = asRecord(scope?.["model"]);
+    const displayName = model?.["display_name"] ?? model?.["displayName"];
+    if (typeof displayName !== "string" || displayName.trim().toLowerCase() !== "fable") {
+      continue;
+    }
+
+    const used = normalizeUsagePercent(limit["percent"]);
+    if (used === undefined) continue;
+
+    return {
+      percentRemaining: Math.min(100, Math.round(100 - used)),
+      resetTimeIso: getWindowResetTimeIso(limit),
+    };
+  }
+
+  return null;
 }
 
 function getUsageRoots(data: unknown): Record<string, unknown>[] {
@@ -361,10 +389,13 @@ function parseUsageResponse(data: unknown): AnthropicQuotaResult | null {
       continue;
     }
 
+    const fable = parseFableQuotaWindow(root["limits"]);
+
     return {
       success: true,
       five_hour: fiveHour,
       seven_day: sevenDay,
+      ...(fable ? { fable } : {}),
     };
   }
 

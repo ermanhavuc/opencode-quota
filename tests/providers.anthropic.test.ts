@@ -158,6 +158,29 @@ describe("anthropic provider", () => {
     ]);
   });
 
+  it("renders Fable after the aggregate five-hour and weekly windows", async () => {
+    const { queryAnthropicQuota } = await import("../src/lib/anthropic.js");
+    vi.mocked(queryAnthropicQuota).mockResolvedValueOnce({
+      success: true,
+      five_hour: { percentRemaining: 78 },
+      seven_day: { percentRemaining: 95 },
+      fable: { percentRemaining: 92, resetTimeIso: "2026-09-06T03:00:00.000Z" },
+    });
+
+    const out = await anthropicProvider.fetch(createProviderAvailabilityContext());
+    expect(visibleEntries(out.entries, "anthropic")).toEqual([
+      expect.objectContaining({ name: "Claude 5h", percentRemaining: 78 }),
+      expect.objectContaining({ name: "Claude Weekly", percentRemaining: 95 }),
+      {
+        name: "Claude Fable",
+        group: "Claude",
+        label: "Fable:",
+        percentRemaining: 92,
+        resetTimeIso: "2026-09-06T03:00:00.000Z",
+      },
+    ]);
+  });
+
   it("maps errors into toast errors", async () => {
     const { queryAnthropicQuota } = await import("../src/lib/anthropic.js");
     (queryAnthropicQuota as any).mockResolvedValueOnce({

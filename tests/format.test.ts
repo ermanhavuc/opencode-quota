@@ -788,6 +788,28 @@ describe("formatQuotaRows", () => {
     expect(barLine?.match(/█/g) ?? []).toHaveLength(2);
   });
 
+  it("renders the OpenAI weekly reset countdown with its indicator", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2098-12-29T00:00:00.000Z"));
+
+    const out = formatQuotaRows({
+      version: "1.0.0",
+      style: "allWindows",
+      layout: { maxWidth: 24, narrowAt: 16, tinyAt: 10 },
+      entries: [
+        {
+          name: "OpenAI Weekly",
+          group: "OpenAI (Pro)",
+          label: "Weekly:",
+          percentRemaining: 81,
+          resetTimeIso: "2099-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(out.split("\n").find((line) => line.startsWith("Weekly"))).toMatch(/Weekly\s+3d$/u);
+  });
+
   it("renders all-window percent-row usage summaries when providers supply them", () => {
     const out = formatQuotaRows({
       version: "1.0.0",

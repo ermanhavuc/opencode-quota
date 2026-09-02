@@ -79,6 +79,9 @@ export const anthropicProvider: QuotaProvider = {
         seven_day_remaining: quota
           ? `${quota.seven_day.percentRemaining}% reset_at=${quota.seven_day.resetTimeIso ?? "(none)"}`
           : undefined,
+        fable_remaining: quota?.fable
+          ? `${quota.fable.percentRemaining}% reset_at=${quota.fable.resetTimeIso ?? "(none)"}`
+          : undefined,
       });
     } catch (error) {
       statusDetails = statusDetailsFromRecord({
@@ -124,6 +127,22 @@ export const anthropicProvider: QuotaProvider = {
         resetTimeIso: result.seven_day.resetTimeIso,
       },
     ];
+
+    if (result.fable) {
+      entries.push({
+        accounting: {
+          resultType: "quota",
+          acquisitionMethod,
+          ownership: "maintained",
+          authority: "provider_reported",
+        },
+        name: "Claude Fable",
+        group: "Claude",
+        label: "Fable:",
+        percentRemaining: result.fable.percentRemaining,
+        resetTimeIso: result.fable.resetTimeIso,
+      });
+    }
 
     return withStatusDetails(attemptedResult(entries), statusDetails);
   },
