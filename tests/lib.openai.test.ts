@@ -103,6 +103,29 @@ describe("openai auth resolution", () => {
     expect(out && out.success ? out.windows.hourly?.percentRemaining : -1).toBe(80);
   });
 
+  it("parses the available manual rate-limit reset count", async () => {
+    mockOpenAIUsageResponse({
+      plan_type: "pro",
+      rate_limit: {
+        limit_reached: false,
+        primary_window: {
+          used_percent: 38,
+          limit_window_seconds: 604_800,
+          reset_after_seconds: 380_165,
+        },
+        secondary_window: null,
+      },
+      rate_limit_reset_credits: {
+        available_count: 1,
+        applicable_available_count: 0,
+      },
+    });
+
+    const out = await queryOpenAIQuota();
+
+    expect(out && out.success ? out.manualResetCount : undefined).toBe(1);
+  });
+
   it("reads auth from opencode when higher-priority keys are unusable", async () => {
     mocks.readAuthFileCached.mockResolvedValueOnce({
       codex: { type: "oauth", access: "   " },

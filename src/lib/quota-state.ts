@@ -43,7 +43,12 @@ export function buildQuotaProviderStateCacheKey(
   const currentModel = ctx.config.currentModel ?? "";
   const currentProviderID = ctx.config.currentProviderID ?? "";
   const anthropicBinaryPath = ctx.config.anthropicBinaryPath ?? "";
-  const providerSchema = providerId === "anthropic" ? "|providerSchema=anthropic-fable-v1" : "";
+  const providerSchema =
+    providerId === "anthropic"
+      ? "|providerSchema=anthropic-fable-v1"
+      : providerId === "openai"
+        ? "|providerSchema=openai-manual-resets-v1"
+        : "";
   const isAggregateCache =
     providerId === QUOTA_PROVIDERS_AGGREGATE_ID ||
     providerId.startsWith(`${QUOTA_PROVIDERS_AGGREGATE_ID}:`);

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { buildSidebarQuotaPanelLines } from "../src/lib/tui-sidebar-format.js";
 import { openaiProvider } from "../src/providers/openai.js";
 import {
   expectAttemptedWithErrorLabel,
@@ -82,6 +83,52 @@ describe("openai provider", () => {
     expect(out.presentation).toEqual({
       singleWindowDisplayName: "OpenAI (Pro)",
     });
+  });
+
+  it("places the manual reset count after the weekly window", async () => {
+    const { queryOpenAIQuota } = await import("../src/lib/openai.js");
+    vi.mocked(queryOpenAIQuota).mockResolvedValueOnce({
+      success: true,
+      label: "OpenAI (Pro)",
+      windows: {
+        weekly: { percentRemaining: 62, resetTimeIso: "2026-09-07T05:22:10.000Z" },
+        monthly: { percentRemaining: 90, resetTimeIso: "2026-10-01T00:00:00.000Z" },
+      },
+      manualResetCount: 1,
+    });
+
+    const out = await openaiProvider.fetch(createProviderAvailabilityContext());
+    expect(visibleEntries(out.entries, "openai")).toEqual([
+      {
+        name: "OpenAI (Pro) Weekly",
+        group: "OpenAI (Pro)",
+        label: "Weekly:",
+        percentRemaining: 62,
+        resetTimeIso: "2026-09-07T05:22:10.000Z",
+      },
+      {
+        kind: "value",
+        name: "OpenAI (Pro) Manual resets",
+        group: "OpenAI (Pro)",
+        label: "Manual resets:",
+        value: "1",
+      },
+      {
+        name: "OpenAI (Pro) Monthly",
+        group: "OpenAI (Pro)",
+        label: "Monthly:",
+        percentRemaining: 90,
+        resetTimeIso: "2026-10-01T00:00:00.000Z",
+      },
+    ]);
+
+    const lines = buildSidebarQuotaPanelLines({
+      config: { formatStyle: "allWindows", percentDisplayMode: "used" },
+      data: { entries: out.entries, errors: out.errors },
+    });
+    expect(lines.some((line) => line.startsWith("Manual resets:") && line.endsWith("1"))).toBe(
+      true,
+    );
   });
 
   it("maps errors into toast errors", async () => {

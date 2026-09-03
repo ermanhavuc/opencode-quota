@@ -186,6 +186,19 @@ export function formatQuotaRowsGrouped(params: {
           continue;
         }
 
+        if (!timeStr) {
+          const valueWidth = Math.max(value.length, 6);
+          const leftMax = Math.max(1, maxWidth - separator.length - valueWidth);
+          const leftText = right ? `${label} ${right}` : label;
+          lines.push(
+            (padRight(leftText, leftMax) + separator + padLeft(value, valueWidth)).slice(
+              0,
+              maxWidth,
+            ),
+          );
+          continue;
+        }
+
         // Non-tiny: single line (no bar)
         const timeWidth = Math.max(timeStr.length, timeCol);
         const valueWidth = Math.max(value.length, 6);

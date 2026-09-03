@@ -48,28 +48,39 @@ export const openaiProvider: QuotaProvider = {
     const result = await queryOpenAIQuota({ requestTimeoutMs: ctx.config?.requestTimeoutMs });
     const providerResult = mapNullableProviderResult(result, {
       errorLabel: "OpenAI",
-      onSuccess: (result) =>
-        attemptedResult(
-          groupedPercentWindowEntries({
+      onSuccess: (result) => {
+        const accounting = {
+          resultType: "rate_limit",
+          acquisitionMethod: "remote_api",
+          ownership: "maintained",
+          authority: "provider_reported",
+        } as const;
+        const entries = groupedPercentWindowEntries({
+          group: result.label,
+          accounting,
+          windows: [
+            { window: result.windows.hourly, suffix: "5h", label: "5h:" },
+            { window: result.windows.weekly, suffix: "Weekly", label: "Weekly:" },
+            { window: result.windows.monthly, suffix: "Monthly", label: "Monthly:" },
+            { window: result.windows.codeReview, suffix: "Code Review", label: "Code Review:" },
+          ],
+        });
+        if (result.manualResetCount !== undefined) {
+          const manualResetEntry = {
+            accounting,
+            kind: "value",
+            name: `${result.label} Manual resets`,
             group: result.label,
-            accounting: {
-              resultType: "rate_limit",
-              acquisitionMethod: "remote_api",
-              ownership: "maintained",
-              authority: "provider_reported",
-            },
-            windows: [
-              { window: result.windows.hourly, suffix: "5h", label: "5h:" },
-              { window: result.windows.weekly, suffix: "Weekly", label: "Weekly:" },
-              { window: result.windows.monthly, suffix: "Monthly", label: "Monthly:" },
-              { window: result.windows.codeReview, suffix: "Code Review", label: "Code Review:" },
-            ],
-          }),
-          [],
-          {
-            singleWindowDisplayName: result.label,
-          },
-        ),
+            label: "Manual resets:",
+            value: String(result.manualResetCount),
+          } as const;
+          const weeklyIndex = entries.findIndex((entry) => entry.label === "Weekly:");
+          entries.splice(weeklyIndex >= 0 ? weeklyIndex + 1 : entries.length, 0, manualResetEntry);
+        }
+        return attemptedResult(entries, [], {
+          singleWindowDisplayName: result.label,
+        });
+      },
     });
     const configured = auth.state === "configured";
     const expiresAt = configured ? auth.expiresAt : undefined;
@@ -86,6 +97,10 @@ export const openaiProvider: QuotaProvider = {
         token_expires_at: expiresAt ? new Date(expiresAt).toISOString() : "(none)",
         account_email: configured && auth.email ? sanitizeDisplayText(auth.email) : "(none)",
         account_id: configured && auth.accountId ? sanitizeDisplayText(auth.accountId) : "(none)",
+        manual_reset_count:
+          result?.success && result.manualResetCount !== undefined
+            ? String(result.manualResetCount)
+            : undefined,
       }),
     );
   },

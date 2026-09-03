@@ -29,6 +29,9 @@ interface OpenAIUsageResponse {
     unlimited: boolean;
     balance: string | null;
   } | null;
+  rate_limit_reset_credits?: {
+    available_count?: unknown;
+  } | null;
 }
 
 interface JwtPayload {
@@ -129,6 +132,10 @@ function parseRemainingWindowValue(window: unknown): OpenAIWindowValue | null {
   };
 }
 
+function parseManualResetCount(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : undefined;
+}
+
 function parseRateLimitWindow(
   window: unknown,
 ): { kind: OpenAIWindowKind; value: OpenAIWindowValue } | null {
@@ -177,6 +184,7 @@ export type OpenAIResult =
         unlimited: boolean;
         balance: string | null;
       };
+      manualResetCount?: number;
     }
   | QuotaError
   | null;
@@ -288,6 +296,9 @@ export async function queryOpenAIQuota(
         const individualLimit = parseRemainingWindowValue(data.spend_control?.individual_limit);
         const codeReview = parseWindowValue(data.code_review_rate_limit?.primary_window);
         const credits = data.credits ?? null;
+        const manualResetCount = parseManualResetCount(
+          data.rate_limit_reset_credits?.available_count,
+        );
         const windows: {
           hourly?: OpenAIWindowValue;
           weekly?: OpenAIWindowValue;
@@ -313,7 +324,7 @@ export async function queryOpenAIQuota(
         if (!windows.monthly && individualLimit) windows.monthly = individualLimit;
         if (codeReview) windows.codeReview = codeReview;
 
-        if (Object.keys(windows).length === 0) {
+        if (Object.keys(windows).length === 0 && manualResetCount === undefined) {
           return { success: false, error: "No quota data" };
         }
 
@@ -322,6 +333,7 @@ export async function queryOpenAIQuota(
           label: derivePlanLabel(data.plan_type),
           email: resolvedAuth.email,
           windows,
+          ...(manualResetCount !== undefined ? { manualResetCount } : {}),
           credits: credits
             ? {
                 hasCredits: Boolean(credits.has_credits),
