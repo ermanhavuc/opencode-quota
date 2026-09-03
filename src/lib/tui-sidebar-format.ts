@@ -1,4 +1,4 @@
-import { sanitizeQuotaRenderData } from "./display-sanitize.js";
+import { sanitizeQuotaRenderData, sanitizeSingleLineDisplayText } from "./display-sanitize.js";
 import { formatQuotaRows } from "./format.js";
 import type { QuotaRenderData } from "./quota-render-data.js";
 import type { QuotaToastConfig } from "./types.js";
@@ -16,12 +16,17 @@ export function buildSidebarQuotaPanelLines(params: {
     Partial<Pick<QuotaToastConfig, "accountingDetail">>;
 }): string[] {
   const data = sanitizeQuotaRenderData(params.data);
+  const errors = data.errors.map((error) => ({
+    ...error,
+    label: sanitizeSingleLineDisplayText(error.label),
+    message: sanitizeSingleLineDisplayText(error.message),
+  }));
 
   const quotaBody = formatQuotaRows({
     version: "1.0.0",
     layout: TUI_SIDEBAR_LAYOUT,
     entries: data.entries,
-    errors: data.errors,
+    errors,
     style: params.config.formatStyle,
     percentDisplayMode: params.config.percentDisplayMode,
     accountingDetail: params.config.accountingDetail,

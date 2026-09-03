@@ -15,7 +15,12 @@ import { homedir } from "os";
 import { join } from "path";
 
 import { resolveAnthropicOAuthCached } from "./anthropic-auth.js";
-import { sanitizeDisplaySnippet, sanitizeDisplayText } from "./display-sanitize.js";
+import {
+  sanitizeDisplaySnippet,
+  sanitizeDisplayText,
+  sanitizeSingleLineDisplaySnippet,
+  sanitizeSingleLineDisplayText,
+} from "./display-sanitize.js";
 import { fetchWithTimeout } from "./http.js";
 
 const DEFAULT_CLAUDE_BINARY = "claude";
@@ -64,6 +69,7 @@ export interface AnthropicQuotaResult {
 export interface AnthropicQuotaError {
   success: false;
   error: string;
+  retryable?: boolean;
 }
 
 export type AnthropicResult = AnthropicQuotaResult | AnthropicQuotaError | null;
@@ -84,6 +90,7 @@ export interface AnthropicDiagnostics {
   oauthCredentialSource?: AnthropicCredentialSource;
   checkedCommands: string[];
   message?: string;
+  retryable?: boolean;
   quota?: AnthropicQuotaResult;
 }
 
@@ -169,7 +176,7 @@ type AnthropicFallbackQuota =
   | {
       state: "unavailable";
       detail?: string;
-      failureKind?: "authentication";
+      failureKind?: "authentication" | "rate_limit";
     };
 
 type ParsedAuthProbe = {
@@ -424,7 +431,7 @@ function getClaudeCredentialsNotFoundDetail(locations: string[]): string {
 }
 
 function buildAnthropicNoQuotaDiagnosticsMessage(detail?: string): string {
-  const normalizedDetail = detail?.trim();
+  const normalizedDetail = detail ? sanitizeSingleLineDisplayText(detail) : "";
   return normalizedDetail
     ? `${ANTHROPIC_NO_QUOTA_MESSAGE} ${normalizedDetail}`
     : ANTHROPIC_NO_QUOTA_MESSAGE;
@@ -712,11 +719,14 @@ function redactAccessTokenFromSanitizedDetail(detail: string, accessToken: strin
 }
 
 function sanitizeAnthropicApiDetail(detail: string, accessToken: string): string {
-  return redactAccessTokenFromSanitizedDetail(detail, accessToken).slice(0, 120);
+  return sanitizeSingleLineDisplaySnippet(
+    redactAccessTokenFromSanitizedDetail(detail, accessToken),
+    120,
+  );
 }
 
 function sanitizeAnthropicRequestError(detail: string, accessToken: string): string {
-  return redactAccessTokenFromSanitizedDetail(detail, accessToken);
+  return sanitizeSingleLineDisplayText(redactAccessTokenFromSanitizedDetail(detail, accessToken));
 }
 
 async function performAnthropicOAuthUsageRequest(
@@ -762,6 +772,7 @@ async function performAnthropicOAuthUsageRequest(
           return {
             state: "unavailable",
             detail: `${errorDetail} ${getAnthropicOAuthCooldownMessage(durationMs)}`,
+            failureKind: "rate_limit",
           };
         }
 
@@ -835,6 +846,7 @@ async function queryAnthropicQuotaFromOAuthAccessToken(
     return {
       state: "unavailable",
       detail: getAnthropicOAuthCooldownMessage(cooldown.blockedUntilMs - nowMs),
+      failureKind: "rate_limit",
     };
   }
 
@@ -1292,6 +1304,7 @@ export async function getAnthropicDiagnostics(
         oauthCredentialSource: credentials.source,
         checkedCommands: localDiagnostics.checkedCommands,
         message: buildAnthropicNoQuotaDiagnosticsMessage(fallbackQuota.detail),
+        ...(fallbackQuota.failureKind === "rate_limit" ? { retryable: true } : {}),
       };
       return diagnostics;
     }
@@ -1374,6 +1387,7 @@ export async function queryAnthropicQuota(
       return {
         success: false,
         error: diagnostics.message,
+        ...(diagnostics.retryable === true ? { retryable: true } : {}),
       };
     }
 

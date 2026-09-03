@@ -62,6 +62,14 @@ describe("xAI auth resolution", () => {
       expiresAt: undefined,
     });
   });
+
+  it("does not treat an expired OAuth entry as available", () => {
+    expect(
+      hasXaiOAuth({
+        xai: { type: "oauth", access: "expired-token", refresh: "refresh-1", expires: Date.now() },
+      }),
+    ).toBe(false);
+  });
 });
 
 describe("queryXaiQuota", () => {
@@ -87,7 +95,7 @@ describe("queryXaiQuota", () => {
     await expect(queryXaiQuota()).resolves.toBeNull();
   });
 
-  it("does not refresh, fetch, or write an expired token", async () => {
+  it("silently skips an expired token owned by OpenCode", async () => {
     const { readAuthFile, readAuthFileCached } = await import("../src/lib/opencode-auth.js");
     (readAuthFile as any).mockResolvedValueOnce({
       xai: {
@@ -100,10 +108,7 @@ describe("queryXaiQuota", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(queryXaiQuota()).resolves.toEqual({
-      success: false,
-      error: "xAI OAuth token expired; use xAI in OpenCode to refresh it or reconnect xAI",
-    });
+    await expect(queryXaiQuota()).resolves.toBeNull();
     expect(readAuthFile).toHaveBeenCalledOnce();
     expect(readAuthFileCached).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();

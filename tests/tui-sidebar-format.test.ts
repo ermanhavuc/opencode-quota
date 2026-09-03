@@ -66,6 +66,26 @@ describe("buildSidebarQuotaPanelLines", () => {
     expect(rendered).toContain("gpt-5");
   });
 
+  it("flattens multiline provider errors into one sidebar line", () => {
+    const lines = buildSidebarQuotaPanelLines({
+      config: {
+        formatStyle: "allWindows",
+        percentDisplayMode: "used",
+      },
+      data: {
+        entries: [],
+        errors: [
+          {
+            label: "Claude",
+            message: "rate limited\nretry later",
+          },
+        ],
+      },
+    });
+
+    expect(lines).toEqual(["Claude: rate limited retry later"]);
+  });
+
   it("uses the fixed sidebar layout instead of toast layout settings", () => {
     const data = {
       entries: [

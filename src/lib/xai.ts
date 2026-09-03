@@ -107,7 +107,11 @@ export function resolveXaiOAuth(auth: AuthData | null | undefined): ResolvedXaiO
 }
 
 export function hasXaiOAuth(auth: AuthData | null | undefined): boolean {
-  return resolveXaiOAuth(auth).state === "configured";
+  const resolved = resolveXaiOAuth(auth);
+  return (
+    resolved.state === "configured" &&
+    (resolved.expiresAt === undefined || resolved.expiresAt > Date.now())
+  );
 }
 
 export async function hasXaiOAuthCached(params?: { maxAgeMs?: number }): Promise<boolean> {
@@ -235,10 +239,7 @@ export async function queryXaiQuota(
   if (resolvedAuth.state !== "configured") return null;
 
   if (resolvedAuth.expiresAt !== undefined && resolvedAuth.expiresAt <= Date.now()) {
-    return {
-      success: false,
-      error: "xAI OAuth token expired; use xAI in OpenCode to refresh it or reconnect xAI",
-    };
+    return null;
   }
 
   try {

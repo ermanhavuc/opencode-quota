@@ -193,6 +193,20 @@ describe("anthropic provider", () => {
     expectAttemptedWithErrorLabel(out, "Claude");
   });
 
+  it("keeps transient Anthropic rate limits out of the sidebar error list", async () => {
+    const { queryAnthropicQuota } = await import("../src/lib/anthropic.js");
+    vi.mocked(queryAnthropicQuota).mockResolvedValueOnce({
+      success: false,
+      error: "Anthropic OAuth usage probe paused after HTTP 429; retry in 30s.",
+      retryable: true,
+    });
+
+    const out = await anthropicProvider.fetch(createProviderAvailabilityContext());
+
+    expectAttemptedWithNoErrors(out);
+    expect(out.entries).toEqual([]);
+  });
+
   it("matches anthropic/ model ids", () => {
     expect(anthropicProvider.matchesCurrentModel?.("anthropic/claude-sonnet-4-6")).toBe(true);
     expect(anthropicProvider.matchesCurrentModel?.("anthropic/claude-opus-4-6")).toBe(true);

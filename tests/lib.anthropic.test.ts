@@ -1028,7 +1028,7 @@ describe("Claude CLI diagnostics", () => {
     expect(diagnostics.message).not.toContain("\u001b");
 
     const quota = await queryAnthropicQuota();
-    expect(quota?.success).toBe(false);
+    expect(quota).toMatchObject({ success: false, retryable: true });
     if (quota && !quota.success) {
       expect(quota.error).toContain("Anthropic API error 429: rate limited");
       expect(quota.error).not.toContain("\u001b");
